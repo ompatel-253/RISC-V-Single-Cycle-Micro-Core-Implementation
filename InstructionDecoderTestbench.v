@@ -27,6 +27,7 @@ module Instruction_Decoder_tb();
         instruction = 32'hFF600213;
         #10;
         instruction = 32'h002081B3;
+        $finish;
     end
 
 endmodule
