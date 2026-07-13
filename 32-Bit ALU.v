@@ -16,13 +16,9 @@ module Thirty_Two_bit_Adder (
     output [31:0] num_out,
     output final_carry
 );
-    
     wire [32:0] carry_chain;
-
-    
     assign carry_chain[0] = cin;
 
-    
     genvar i;
     generate
         for (i = 0; i < 32; i = i + 1) begin : adder_loop
@@ -36,57 +32,46 @@ module Thirty_Two_bit_Adder (
         end
     endgenerate
 
-    
     assign final_carry = carry_chain[32];
-    
 endmodule
 
-module ALU (
-    input [31:0] a,
-    input [31:0] b,
-    input [2:0] sel,
-    output reg [31:0] y,
-    output reg carry
+module Thirty_Two_bit_ALU (
+    input [31:0] A,
+    input [31:0] B,
+    input [3:0] alu_control,
+    output reg [31:0] alu_result,
+    output zero
 );
     wire [31:0] selective_inverter;
     wire cin_selected;
     wire [31:0] sum_wire;
     wire carry_wire;
 
-    
-    assign selective_inverter = (sel == 3'b001) ? ~b : b;
-    assign cin_selected = (sel == 3'b001) ? 1'b1 : 1'b0;
+    assign selective_inverter = (alu_control == 4'b0110) ? ~B : B;
+    assign cin_selected       = (alu_control == 4'b0110) ? 1'b1 : 1'b0;
 
-    
-    Thirty_Two_bit_Adder instance_1 (
-        .number_1(a),
+    Thirty_Two_bit_Adder arithmetic_core (
+        .number_1(A),
         .number_2(selective_inverter),
         .cin(cin_selected),
         .num_out(sum_wire),
         .final_carry(carry_wire)
     );
 
+    assign zero = (alu_result == 32'b0);
+
     always @(*) begin
         
-        y = 32'b0;
-        carry = 1'b0;
-        
-        case (sel)
-            3'b000 : begin 
-                y = sum_wire;
-                carry = carry_wire;
-            end    
-            3'b001 : begin 
-                y = sum_wire;
-                carry = carry_wire;
-            end
-            3'b010 : y = a | b;  
-            3'b011 : y = a & b;  
-            3'b100 : y = a ^ b;  
-            default : begin
-                y = 32'b0;
-                carry = 1'b0;
-            end
+        alu_result = 32'b0;
+
+        case (alu_control)
+            4'b0010 : alu_result = sum_wire;                                  
+            4'b0110 : alu_result = sum_wire;                                  
+            4'b0000 : alu_result = A & B;                                     
+            4'b0001 : alu_result = A | B;                                     
+            4'b0111 : alu_result = ($signed(A) < $signed(B)) ? 32'd1 : 32'd0; 
+            default : alu_result = 32'b0;                                     
         endcase
     end
+
 endmodule
