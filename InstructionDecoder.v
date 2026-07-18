@@ -6,7 +6,7 @@ module Instruction_Decoder (
     output [4:0] rs1,
     output [4:0] rs2,
     output [6:0] funct7,
-    output [31:0] imm_ext
+    output reg [31:0] imm_ext
 );
 
     assign opcode = instruction[6:0];
@@ -17,6 +17,17 @@ module Instruction_Decoder (
     assign rs2 = instruction[24:20];
     assign funct7 = instruction[31:25];
 
-    assign imm_ext = {{20{instruction[31]}},instruction[31:20]};
+    always @(*) begin
+
+        case (opcode)
+
+            7'b0010011, 7'b0000011 : imm_ext = {{20{instruction[31]}}, instruction[31:20]}; 
+            7'b0100011 : imm_ext = { {20{instruction[31]}}, instruction[31:25], instruction[11:7] };
+            7'b1100011 : imm_ext = { {19{instruction[31]}}, instruction[31], instruction[7], instruction[30:25], instruction[11:8], 1'b0 };
+            default : imm_ext = 32'b0;
+        
+        endcase
+    
+    end
 
 endmodule
