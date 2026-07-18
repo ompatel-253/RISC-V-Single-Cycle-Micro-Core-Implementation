@@ -6,22 +6,51 @@ module RISCV_Core(
 );
 
     wire [31:0] pc_next;
+    wire [31:0] pc;
+    wire [31:0] instruction;
+    wire [6:0] opcode;
+    wire [4:0] rd;
+    wire [2:0] funct3;
+    wire [4:0] rs1;
+    wire [4:0] rs2;
+    wire [6:0] funct7;
+    wire [31:0] imm_ext;
+    wire RegWrite;
+    wire ALUSrc;
+    wire MemRead;
+    wire MemWrite;
+    wire MemtoReg;
+    wire Branch;
+    wire [1:0] ALUOp;
+
+    wire funct7_b5;
+    assign funct7_b5 = funct7[5];
+    wire [3:0] alu_control;
+
+    wire [31:0] dr_write_data;
+    wire reg_write_en;
+    wire [31:0] rs1_data;
+    wire [31:0] rs2_data;
+
+    assign reg_write_en = RegWrite;
+    wire [31:0] RegisterData_Or_Immediate_MUX_out;
+    wire [31:0] alu_result;
+    wire zero;
+    wire [31:0] read_data;
 
     program_counter pC_1(
         .clk(clk),
         .reset(reset),
-        .pc(pc),
-        .pc_next(pc)
+        .pc_next(pc_next),
+        .pc(pc)
     );
-
-    wire [31:0] pc;
 
     Instruction_Memory IM_1(
         .address(pc),
         .instruction(instruction)
     );
 
-    wire [31:0] instruction;
+    
 
     Instruction_Decoder ID_1(
         .instruction(instruction),
@@ -34,13 +63,7 @@ module RISCV_Core(
         .imm_ext(imm_ext)
     );
 
-    wire [6:0] opcode;
-    wire [4:0] rd;
-    wire [2:0] funct3;
-    wire [4:0] rs1;
-    wire [4:0] rs2;
-    wire [6:0] funct7;
-    wire [31:0] imm_ext;
+    
 
     Main_Control_Unit MC1(
         .opcode(opcode),
@@ -53,16 +76,7 @@ module RISCV_Core(
         .ALUOp(ALUOp)
     );
 
-    wire RegWrite;
-    wire ALUSrc;
-    wire MemRead;
-    wire MemWrite;
-    wire MemtoReg;
-    wire Branch;
-    wire [1:0] ALUOp;
-
-    wire funct7_b5;
-    assign funct7_b5 = funct7[4];
+    
 
     ALU_Control_Unit ALUCU_1 (
         .ALUOp(ALUOp),
@@ -71,10 +85,7 @@ module RISCV_Core(
         .alu_control(alu_control)
     );
 
-    wire [3:0] alu_control;
-
-    wire [31:0] dr_write_data;
-    wire reg_write_en;
+    
 
     RegisterFile RF_1(
         .sr_1_address(rs1),
@@ -88,8 +99,7 @@ module RISCV_Core(
         .reg_write_en(reg_write_en)
     );
 
-    wire [31:0] rs1_data;
-    wire [31:0] rs2_data;
+    
 
     RegisterData_Or_Immediate_MUX MUX_1 (
         .ALUSrc(ALUSrc),
@@ -98,7 +108,7 @@ module RISCV_Core(
         .RegisterData_Or_Immediate_MUX_out(RegisterData_Or_Immediate_MUX_out)
     );
 
-    wire [31:0] RegisterData_Or_Immediate_MUX_out
+    
 
     Thirty_Two_bit_ALU ALU_1 (
         .A(rs1_data),
@@ -108,15 +118,33 @@ module RISCV_Core(
         .zero(zero)
     );
 
-    wire [31:0] alu_result;
-    wire zero;
-
-    DataMemory DM_1()
     
 
+    DataMemory DM_1(
+        .clk(clk),
+        .MemWrite(MemWrite),
+        .MemRead(MemRead),
+        .address(alu_result),
+        .write_data(rs2_data),
+        .read_data(read_data)
+    );
 
+    
 
+    MemtoReg_MUX MUX_2(
+        .MemtoReg(MemtoReg),
+        .read_data(read_data),
+        .alu_result(alu_result),
+        .write_data(dr_write_data)
+    );
 
+    pc_next_counter pc_next_1(
+        .pc(pc),
+        .zero(zero),
+        .Branch(Branch),
+        .pc_next(pc_next),
+        .imm_ext(imm_ext)
+    );
 
 endmodule
 
@@ -348,6 +376,7 @@ module ALU_Control_Unit (
                     end
                     3'b110:  alu_control = 4'b0001; 
                     3'b111:  alu_control = 4'b0000; 
+                    3'b010:  alu_control = 4'b0111;
                     default: alu_control = 4'b0000; 
                 endcase
             end
@@ -494,5 +523,32 @@ module RegisterData_Or_Immediate_MUX(
 );
 
     assign RegisterData_Or_Immediate_MUX_out = (ALUSrc == 1'b1) ? imm_ext : rs2_data;
+
+endmodule
+
+module MemtoReg_MUX (
+
+    input MemtoReg,
+    input [31:0] read_data,
+    input [31:0] alu_result,
+    output [31:0] write_data
+
+);
+
+    assign write_data = (MemtoReg == 1'b1) ? read_data : alu_result;
+
+endmodule
+
+module pc_next_counter (
+
+    input [31:0] pc,
+    input zero,
+    input Branch,
+    output [31:0] pc_next,
+    input [31:0] imm_ext
+
+);
+
+    assign pc_next = (Branch && zero) ? (pc + imm_ext) : (pc+4);
 
 endmodule
