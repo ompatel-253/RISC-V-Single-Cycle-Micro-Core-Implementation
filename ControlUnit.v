@@ -2,6 +2,10 @@ module Main_Control_Unit(
     input [6:0] opcode,
     output reg RegWrite,
     output reg ALUSrc,
+    output reg MemRead,
+    output reg MemWrite,
+    output reg MemtoReg,
+    output reg Branch,
     output reg [1:0] ALUOp
 );
 
@@ -9,25 +13,72 @@ module Main_Control_Unit(
 
         case(opcode) 
 
-            7'h33 : begin
-                        RegWrite = 1'b1;
-                        ALUSrc = 1'b0;
-                        ALUOp = 2'b10;
-                    end
+            // R-Type Instructions (add, sub, and, or)
+            7'b0110011 : begin
+                RegWrite = 1'b1;
+                ALUSrc   = 1'b0;
+                MemRead  = 1'b0;
+                MemWrite = 1'b0;
+                MemtoReg = 1'b0;
+                Branch   = 1'b0;
+                ALUOp    = 2'b10;
+            end
             
-            7'h13 : begin
-                        RegWrite = 1'b1;
-                        ALUSrc = 1'b1;
-                        ALUOp = 2'b11;
-                    end
+            // I-Type Immediate Arithmetic (addi)
+            7'b0010011 : begin
+                RegWrite = 1'b1;
+                ALUSrc   = 1'b1;
+                MemRead  = 1'b0;
+                MemWrite = 1'b0;
+                MemtoReg = 1'b0;
+                Branch   = 1'b0;
+                ALUOp    = 2'b11;
+            end
             
-            default : begin
-                        RegWrite = 1'b0;
-                        ALUSrc = 1'b0;
-                        ALUOp = 2'b00;
-                      end  
-        endcase
+            // Load Word Instruction (lw)
+            7'b0000011 : begin
+                RegWrite = 1'b1;
+                ALUSrc   = 1'b1;
+                MemRead  = 1'b1;
+                MemWrite = 1'b0;
+                MemtoReg = 1'b1; // Route data from memory to register
+                Branch   = 1'b0;
+                ALUOp    = 2'b00;
+            end
+            
+            // Store Word Instruction (sw)
+            7'b0100011 : begin
+                RegWrite = 1'b0;
+                ALUSrc   = 1'b1; // Use the S-type immediate for address offset
+                MemRead  = 1'b0;
+                MemWrite = 1'b1; // Trigger memory write sequence
+                MemtoReg = 1'b0; // Don't care (RegWrite is 0 anyway)
+                Branch   = 1'b0;
+                ALUOp    = 2'b00;
+            end
 
+            // Branch On Equal Instruction (beq)
+            7'b1100011 : begin
+                RegWrite = 1'b0;
+                ALUSrc   = 1'b0; // Compare rs1 and rs2 directly
+                MemRead  = 1'b0;
+                MemWrite = 1'b0;
+                MemtoReg = 1'b0; // Don't care
+                Branch   = 1'b1; // Raise flag for top-level jump circuit
+                ALUOp    = 2'b01; // Tells ALU control to subtract
+            end
+            
+            // Catch-all Default State
+            default : begin
+                RegWrite = 1'b0;
+                ALUSrc   = 1'b0;
+                MemRead  = 1'b0;
+                MemWrite = 1'b0;
+                MemtoReg = 1'b0;
+                Branch   = 1'b0;
+                ALUOp    = 2'b00;
+            end  
+        endcase
 
     end
 
